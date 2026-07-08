@@ -99,6 +99,7 @@ WW1A(瞄准好用 没有视觉 搭配WW1B)
 流浪生存
 僵尸实验室
 攻击泰坦:帕拉迪斯
+被遗弃
 犯罪行为]],
     Buttons = {},
 })
@@ -1230,6 +1231,8 @@ local serverControls = {}
 local detectButton = nil
 local attackTitanControls = {}
 local attackTitanConnections = {}
+local abandonedControls = {}
+local abandonedConnections = {}
 
 local function clearServerButtons()
     for _, ctrl in ipairs(serverControls) do
@@ -1243,6 +1246,16 @@ local function clearServerButtons()
     end
     attackTitanConnections = {}
     attackTitanControls = {}
+    for _, ctrl in ipairs(abandonedControls) do
+        if ctrl and ctrl.Destroy then
+            pcall(function() ctrl:Destroy() end)
+        end
+    end
+    abandonedControls = {}
+    for _, conn in pairs(abandonedConnections) do
+        if conn then pcall(function() conn:Disconnect() end) end
+    end
+    abandonedConnections = {}
 end
 
 local function addServerButton(title, callback)
@@ -1371,6 +1384,51 @@ local function createAttackTitanControls()
         end
     })
     table.insert(attackTitanControls, killToggle)
+end
+
+local function createAbandonedControls()
+    for _, ctrl in ipairs(abandonedControls) do
+        if ctrl and ctrl.Destroy then pcall(function() ctrl:Destroy() end) end
+    end
+    abandonedControls = {}
+    for _, conn in pairs(abandonedConnections) do
+        if conn then pcall(function() conn:Disconnect() end) end
+    end
+    abandonedConnections = {}
+
+    local sprintState = false
+    local connection = nil
+    local RunService = game:GetService("RunService")
+
+    local toggle = ServerTab:Toggle({
+        Title = "无限体力",
+        Desc = "",
+        Value = false,
+        Callback = function(state)
+            sprintState = state
+            local Sprinting = getgenv().GetModule and getgenv().GetModule()
+            if not Sprinting then
+                warn("无法获取体力模块，请确保游戏已加载")
+                return
+            end
+            if state then
+                if connection then connection:Disconnect() end
+                connection = RunService.Heartbeat:Connect(function()
+                    if not sprintState then return end
+                    Sprinting.StaminaLoss = 0
+                    Sprinting.StaminaGain = getgenv().StaminaSettings and getgenv().StaminaSettings.InfiniteGain or 9999
+                end)
+            else
+                if connection then
+                    connection:Disconnect()
+                    connection = nil
+                end
+                Sprinting.StaminaLoss = getgenv().StaminaSettings and getgenv().StaminaSettings.StaminaLoss or 10
+                Sprinting.StaminaGain = getgenv().StaminaSettings and getgenv().StaminaSettings.StaminaGain or 25
+            end
+        end
+    })
+    table.insert(abandonedControls, toggle)
 end
 
 local function rebuildServerButtons(titlesToShow)
@@ -1545,6 +1603,10 @@ local function rebuildServerButtons(titlesToShow)
             createAttackTitanControls()
             notify("已加载", "攻击泰坦功能已显示", 2)
         end},
+        {title = "被遗弃", callback = function()
+            createAbandonedControls()
+            notify("已加载", "被遗弃功能已显示", 2)
+        end},
         {title = "犯罪行为", callback = function()
             loadstring(game:HttpGet("https://pastebin.com/raw/LTVNLrxw"))()
         end},
@@ -1594,6 +1656,7 @@ local gameMap = {
     [100283815455755] = { name = "流浪生存", titles = {"流浪生存"} },
     [6741970382] = { name = "僵尸实验室", titles = {"僵尸实验室"} },
     [8412352352] = { name = "攻击泰坦:帕拉迪斯", titles = {"攻击泰坦:帕拉迪斯(自制持续更新)"} },
+    [83645629621104] = { name = "被遗弃", titles = {"被遗弃"} },
     [4588604953] = { name = "犯罪行为", titles = {"犯罪行为", "犯罪行为(二份)"} },
 }
 
